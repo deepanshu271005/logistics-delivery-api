@@ -6,8 +6,7 @@ const Driver = require('../Models/Driver'); // loading the schema of the driver 
 const registerDriver = async (req, res) => {
     try {
         // 1->> get the data send by the frontend for creating a driver 
-        const { name, email, vehicleType } = req.body;
-
+const { name, email, vehicleType, status, maxCapacity, location } = req.body;
         // 2->> is complete info?
         if (!name || !email || !vehicleType) {
             return res.status(400).json({ message: "Please provide all required fields." });
@@ -23,7 +22,10 @@ const registerDriver = async (req, res) => {
         const newDriver = await Driver.create({
             name,
             email,
-            vehicleType
+            vehicleType,
+            status,      // Passed safely
+            maxCapacity, // Passed safely
+            location     // Passed safely
         });
 
         // 5->> Send a success message back to the frontend
@@ -82,7 +84,7 @@ const updateDriverLocation = async (req, res) => {
                     coordinates: [longitude, latitude]  
                 }
             },
-            { new: true }  //this tells to store the new data in the updated driver
+           { returnDocument: 'after' } //this tells to store the new data in the updated driver
         );
 
         if (!updatedDriver) {

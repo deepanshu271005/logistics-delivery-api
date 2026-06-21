@@ -29,7 +29,6 @@ const createPackage = async (req, res) => {
 
 const trackPackage = async (req, res) => {
     try {
-         
         const { packageId } = req.params;
 
         // 1. Find the package
@@ -38,7 +37,15 @@ const trackPackage = async (req, res) => {
             return res.status(404).json({ error: "Package not found." });
         }
 
-        // 2. Ensure a driver is actually assigned
+        // 2. Prevent action on already delivered packages
+        if (deliveryPackage.status === 'DELIVERED') {
+            return res.status(400).json({ 
+                message: "This package has already been delivered.",
+                packageId: deliveryPackage._id
+            });
+        }
+
+        // 3. Ensure a driver is actually assigned
         if (deliveryPackage.status === 'PENDING' || !deliveryPackage.driverId) {
             return res.status(400).json({ 
                 message: "Package is not assigned to a driver yet.",
@@ -46,35 +53,49 @@ const trackPackage = async (req, res) => {
             });
         }
 
-        // 3. Find the driver to get their CURRENT location
+        // 4. Find the driver to get their CURRENT location
         const driver = await Driver.findById(deliveryPackage.driverId);
         if (!driver) {
             return res.status(404).json({ error: "Assigned driver not found in database." });
         }
 
-        //Calculating the ETA and the Distance with the [lat,long] obtained 
-        let targetCoordinates;
-        let trackingStage;
+        // 5. Dynamic Target System: Calculate TOTAL remaining trip
+        let distanceRemainingKm = 0;
+        let trackingStage = "";
+
         if (deliveryPackage.status === 'ASSIGNED') {
-            // Driver is moving toward the pickup location
-            targetCoordinates = deliveryPackage.pickupLocation.coordinates;
             trackingStage = "Driver heading to pickup location";
-        } else {
-            // Driver has picked up the item and is moving toward the customer dropoff location
-            targetCoordinates = deliveryPackage.dropoffLocation.coordinates;
+            
+            // Leg A: Driver Current Location to Restaurant
+            const driverToPickup = calculateDistance(
+                driver.location.coordinates[1], driver.location.coordinates[0],
+                deliveryPackage.pickupLocation.coordinates[1], deliveryPackage.pickupLocation.coordinates[0]
+            );
+            
+            // Leg B: Restaurant to Customer
+            const pickupToDropoff = calculateDistance(
+                deliveryPackage.pickupLocation.coordinates[1], deliveryPackage.pickupLocation.coordinates[0],
+                deliveryPackage.dropoffLocation.coordinates[1], deliveryPackage.dropoffLocation.coordinates[0]
+            );
+            
+            // THE UNIFIED MATH: Add both legs together!
+            distanceRemainingKm = driverToPickup + pickupToDropoff;
+
+        } else if (deliveryPackage.status === 'IN_TRANSIT') {
             trackingStage = "Driver heading to dropoff destination";
+            
+            // Driver already has the package, Leg A is finished.
+            // We only calculate Leg B: Driver to Customer
+            distanceRemainingKm = calculateDistance(
+                driver.location.coordinates[1], driver.location.coordinates[0],
+                deliveryPackage.dropoffLocation.coordinates[1], deliveryPackage.dropoffLocation.coordinates[0]
+            );
         }
 
-        const distanceRemainingKm = calculateDistance(
-            driver.location.coordinates[1], // Driver current Latitude
-            driver.location.coordinates[0], // Driver current Longitude
-            targetCoordinates[1],           // Next Target Latitude
-            targetCoordinates[0]            // Next Target Longitude
-        );
+        // 6. Run the live ETA calculation on the synchronized distance
         const etaRemainingMins = calculateETA(distanceRemainingKm);
 
-
-        // 4. Return the clean, live tracking data
+        // 7. Return the synchronized JSON response
         res.status(200).json({
             packageId: deliveryPackage._id,
             status: deliveryPackage.status,
@@ -82,8 +103,7 @@ const trackPackage = async (req, res) => {
             driverName: driver.name,
             liveLocation: {
                 type: "Point",
-                // Remember: MongoDB stores as [Longitude, Latitude]
-                coordinates: driver.location.coordinates 
+                coordinates: driver.location.coordinates
             },
             liveMetrics: {
                 distanceRemainingKm: distanceRemainingKm.toFixed(2),
@@ -98,6 +118,65 @@ const trackPackage = async (req, res) => {
 };
 
 
+
+const completeDelivery = async (req, res) => {
+    try {
+        const { packageId } = req.params;
+
+        // 1. Find the package
+        const deliveryPackage = await Package.findById(packageId);
+        if (!deliveryPackage) {
+            return res.status(404).json({ error: "Package not found." });
+        }
+
+        // 2. Prevent double-deliveries
+        if (deliveryPackage.status === 'DELIVERED') {
+            return res.status(400).json({ error: "Package has already been delivered." });
+        }
+        if (!deliveryPackage.driverId) {
+            return res.status(400).json({ error: "Package is not assigned to a driver." });
+        }
+
+        // 3. Find the assigned driver
+        const driver = await Driver.findById(deliveryPackage.driverId);
+        if (!driver) {
+            return res.status(404).json({ error: "Assigned driver not found." });
+        }
+
+        // 4. Update the Package
+        deliveryPackage.status = 'DELIVERED';
+        await deliveryPackage.save();
+
+        // 5. Update the Driver's capacity Atomically to avoid the race condition 
+         
+       const updatedDriver = await Driver.findByIdAndUpdate(
+            deliveryPackage.driverId, 
+            { 
+                $inc: { currentLoad: -1 }, 
+                $set: { status: 'AVAILABLE' } 
+            }, 
+            { returnDocument: 'after' } // <-- Fixes the Mongoose warning!
+        );
+
+        // 6. Return Success Response
+        res.status(200).json({
+            message: "Delivery completed successfully!",
+            packageId: deliveryPackage._id,
+            packageStatus: deliveryPackage.status,
+            driverDetails: {
+                name: updatedDriver.name,
+                newLoad: updatedDriver.currentLoad,
+                driverNewStatus: updatedDriver.status
+            }
+        });
+
+    } catch (error) {
+        console.error("Completion Error:", error);
+        res.status(500).json({ error: "Internal server error completing delivery." });
+    }
+};
+
+
 module.exports = {
-    createPackage,trackPackage
+    createPackage,trackPackage,completeDelivery
 };

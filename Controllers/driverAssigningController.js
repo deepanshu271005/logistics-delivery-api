@@ -61,8 +61,11 @@ const assignDriver = async (req, res) => {
             dropLon
         );
 
-        //   Calculate the ETA for the delivery route
-        const estimatedTimeMins = calculateETA(pickupToDropoffKm);
+       // Calculate total distance (Leg A + Leg B)
+        const totalDistanceKm = driverToPickupKm + pickupToDropoffKm;
+        
+        // Pass the TOTAL distance into your ETA tool
+        const estimatedTimeMins = calculateETA(totalDistanceKm);
 
         // 4. Calculate capacity status
         const isNowFull = (nearestDriver.currentLoad + 1) >= nearestDriver.maxCapacity;
@@ -86,9 +89,10 @@ const assignDriver = async (req, res) => {
             driverAssigned: nearestDriver.name,
             distances: {
                 driverToPickupKm: driverToPickupKm.toFixed(2),
-                deliveryRouteKm: pickupToDropoffKm.toFixed(2)
+                deliveryRouteKm: pickupToDropoffKm.toFixed(2),
+                totalDistanceKm: totalDistanceKm.toFixed(2) // Good to send this to the frontend!
             },
-            estimatedTime: `${estimatedTimeMins} mins`,
+            estimatedTotalTime: `${estimatedTimeMins} mins`,
             packageDetails: updatedPackage
         });
 
