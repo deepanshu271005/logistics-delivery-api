@@ -1,9 +1,8 @@
 // controllers/matchmakingController.js
 const Driver = require('../models/Driver');
 const Package = require('../models/Package');
-// FIX 1: Added curly braces to properly import the function
-const { calculateDistance } = require('../utils/distanceCalculator');
-
+const { calculateDistance, calculateETA } = require('../utils/distanceCalculator')
+ 
 const assignDriver = async (req, res) => {
     try {
         const { packageId } = req.body;
@@ -62,6 +61,9 @@ const assignDriver = async (req, res) => {
             dropLon
         );
 
+        //   Calculate the ETA for the delivery route
+        const estimatedTimeMins = calculateETA(pickupToDropoffKm);
+
         // 4. Calculate capacity status
         const isNowFull = (nearestDriver.currentLoad + 1) >= nearestDriver.maxCapacity;
         const newStatus = isNowFull ? 'BUSY' : 'AVAILABLE';
@@ -86,6 +88,7 @@ const assignDriver = async (req, res) => {
                 driverToPickupKm: driverToPickupKm.toFixed(2),
                 deliveryRouteKm: pickupToDropoffKm.toFixed(2)
             },
+            estimatedTime: `${estimatedTimeMins} mins`,
             packageDetails: updatedPackage
         });
 

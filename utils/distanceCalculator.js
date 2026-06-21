@@ -25,4 +25,18 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
     return estimatedRoadDistance;
 };
 
-module.exports = { calculateDistance };
+const calculateETA = (distanceKm, averageSpeedKmh = 40) => {
+    // Time = Distance / Speed (This gives us hours)
+    const timeInHours = distanceKm / averageSpeedKmh;
+    
+    // Convert hours to minutes
+    const timeInMinutes = timeInHours * 60;
+    
+    // Let's add a realistic 5-minute buffer for parking, picking up the package, etc.
+    const realisticETA = Math.ceil(timeInMinutes) + 5; 
+    
+    return realisticETA;
+};
+
+// Update your export box at the bottom to include BOTH tools
+module.exports = { calculateDistance, calculateETA };
