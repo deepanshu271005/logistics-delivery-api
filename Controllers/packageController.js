@@ -119,6 +119,41 @@ const trackPackage = async (req, res) => {
 
 
 
+
+const pickUpPackage = async (req, res) => {
+    try {
+        const { packageId } = req.params;
+
+        const deliveryPackage = await Package.findById(packageId);
+        if (!deliveryPackage) {
+            return res.status(404).json({ error: "Package not found." });
+        }
+
+        // The package MUST be ASSIGNED before it can be picked up
+        if (deliveryPackage.status !== 'ASSIGNED') {
+            return res.status(400).json({ 
+                error: `Cannot pick up package. Current status is: ${deliveryPackage.status}` 
+            });
+        }
+
+        // Update status to IN_TRANSIT
+        deliveryPackage.status = 'IN_TRANSIT';
+        await deliveryPackage.save();
+
+        res.status(200).json({
+            message: "Package picked up successfully! Driver is en route to customer.",
+            packageId: deliveryPackage._id,
+            status: deliveryPackage.status
+        });
+
+    } catch (error) {
+        console.error("Pickup Error:", error);
+        res.status(500).json({ error: "Internal server error during pickup." });
+    }
+};
+
+
+
 const completeDelivery = async (req, res) => {
     try {
         const { packageId } = req.params;
@@ -178,5 +213,5 @@ const completeDelivery = async (req, res) => {
 
 
 module.exports = {
-    createPackage,trackPackage,completeDelivery
+    createPackage,trackPackage,completeDelivery,pickUpPackage
 };
