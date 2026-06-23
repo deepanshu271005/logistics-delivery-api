@@ -4,6 +4,7 @@ const dotenv = require('dotenv');
 const connectDB = require('./Config/db.js');
 const driverRoutes = require('./Routers/driverRoutes');
 const packageRoutes = require('./Routers/packageRoutes');
+const userRoutes = require('./Routers/userRoutes');
 
 // loading the .env file variable 
 dotenv.config();
@@ -20,6 +21,7 @@ app.use(express.json());
 
 app.use('/api/drivers', driverRoutes);
 app.use('/api/packages', packageRoutes);
+app.use('/api/user',userRoutes);
 
 
 app.listen(PORT, () => {
