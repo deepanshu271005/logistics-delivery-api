@@ -46,6 +46,30 @@ const registerUser = async (req, res) => {
     }
 };
 
+
+
+const getUserProfile = async (req, res) => {
+    try {
+        // req.user was securely attached to the request by your 'protect' bouncer!
+        // We use .select('-password') so the hash never accidentally leaks to the frontend
+        const user = await User.findById(req.user.userId).select('-password');
+
+        if (!user) {
+            return res.status(404).json({ error: "User not found." });
+        }
+
+        // Send the clean user data to the frontend
+        res.status(200).json({
+            message: "Profile fetched successfully",
+            user: user
+        });
+
+    } catch (error) {
+        console.error("Profile Fetch Error:", error);
+        res.status(500).json({ error: "Internal server error fetching profile." });
+    }
+};
+
 module.exports = {
-    registerUser
+    registerUser,getUserProfile
 };
