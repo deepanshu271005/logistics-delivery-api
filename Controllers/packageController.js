@@ -5,24 +5,26 @@ const { calculateDistance, calculateETA } = require('../utils/distanceCalculator
 
 const createPackage = async (req, res) => {
     try {
-        const { customerId, pickupLocation, dropoffLocation } = req.body;
+        // We DON'T pull customerId from req.body anymore
+        const { pickupLocation, dropoffLocation } = req.body;
 
-        // Create the new package in the database
+        // Create the new package
         const newPackage = await Package.create({
-            customerId,
+            // We pull it from the 'protect' middleware's data instead!
+            customerId: req.user.userId, 
             pickupLocation,
             dropoffLocation
         });
 
-        // Return the created package so we can copy its ID for testing
         res.status(201).json({
             message: "Package successfully created",
             packageDetails: newPackage
         });
 
     } catch (error) {
+        // This log will now show the REAL error from Mongoose
         console.error("Error creating package:", error);
-        res.status(500).json({ error: "Internal server error while creating package." });
+        res.status(500).json({ error: error.message });
     }
 };
 
@@ -141,7 +143,7 @@ const pickUpPackage = async (req, res) => {
         await deliveryPackage.save();
 
         res.status(200).json({
-            message: "Package picked up successfully! Driver is en route to customer.",
+            message: "Package picked up successfully! Driver is on route to customer.",
             packageId: deliveryPackage._id,
             status: deliveryPackage.status
         });

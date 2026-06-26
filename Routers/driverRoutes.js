@@ -11,7 +11,7 @@ const { protect, adminOnly } = require('../Middlewares/authMiddleware');
  //is route or aane waali post querry ko direct kr do contorller ko
 router.post('/',protect, registerDriver);
 router.get('/',protect, adminOnly, getAllDrivers);
-router.put('/:id/location', updateDriverLocation);
+router.put('/updateLocation',protect, updateDriverLocation);
 router.post('/assign-driver',assignDriver);
 
 

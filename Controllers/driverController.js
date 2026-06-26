@@ -62,33 +62,28 @@ const getAllDrivers = async (req, res) => {
  
 const updateDriverLocation = async (req, res) => {
     try {
-         
-        // 1-> get the id form the url using the params
-        const { id } = req.params;
-        
-        // 2->> collect the data that frontends send that is the current location 
+        // 1. Get coordinates from the frontend
         const { longitude, latitude } = req.body;
 
-        //checking valid or not 
         if (longitude === undefined || latitude === undefined) {
             return res.status(400).json({ message: "Longitude and latitude are required." });
         }
 
-        // 3.->> find the driver and then update is location 
-        const updatedDriver = await Driver.findByIdAndUpdate(
-            id,
+        // 2. Find THIS specific driver using their secure logged-in token ID!
+        // We look for the Driver profile where the 'user' field matches req.user.userId
+        const updatedDriver = await Driver.findOneAndUpdate(
+            { user: req.user.userId }, 
             {
-                //overwriting the prev location with the curr coordinate
                 location: {
                     type: 'Point',
                     coordinates: [longitude, latitude]  
                 }
             },
-           { returnDocument: 'after' } //this tells to store the new data in the updated driver
+            { new: true } // Mongoose standard for returning the updated document
         );
 
         if (!updatedDriver) {
-            return res.status(404).json({ message: "Driver not found" });
+            return res.status(404).json({ message: "Driver profile not found. Please register as a driver first." });
         }
 
         res.status(200).json({

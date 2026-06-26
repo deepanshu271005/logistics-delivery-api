@@ -15,7 +15,7 @@ const { loginUser } = require('../Controllers/userController');
 //calling the particular routes 
 router.post('/create',registerUser);
 router.get('/me', protect, getUserProfile);
-router.put('/login', loginUser);
+router.post('/login', loginUser);
 
 
 
