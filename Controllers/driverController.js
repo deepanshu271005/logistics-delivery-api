@@ -46,20 +46,18 @@ const registerDriver = async (req, res) => {
 //reading all the driver info 
 const getAllDrivers = async (req, res) => {
     try {
+        // .populate() tells Mongoose: "Look at the 'user' ID, go to the User collection, 
+        // and bring back their 'name' and 'email'!"
+        const drivers = await Driver.find().populate('user', 'name email');
         
-        const drivers = await Driver.find();
-        
-       
         res.status(200).json({
             count: drivers.length,
             drivers: drivers
         });
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: "Server Error", error: error.message });
+        // ... error handling
     }
 };
-
 
  
 const updateDriverLocation = async (req, res) => {
