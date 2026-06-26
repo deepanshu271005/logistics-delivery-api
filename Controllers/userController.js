@@ -2,6 +2,61 @@
 const User = require('../models/User');  
 const bcrypt = require('bcryptjs');
 
+
+const loginUser = async (req, res) => {
+    try {
+        // 1. Get the input from the request body
+        const { email, password } = req.body;
+
+        // Check if the user actually typed both fields
+        if (!email || !password) {
+            return res.status(400).json({ error: "Please provide both email and password." });
+        }
+
+        // 2. Check if they are present in the database
+        const user = await User.findOne({ email });
+        
+        if (!user) {
+            // Security Best Practice: Do not say "Email not found". 
+            // It tells hackers which emails exist in your system. Use a vague error.
+            return res.status(401).json({ error: "Invalid email or password." });
+        }
+
+        // 3. Check if the password is correct
+        // We throw the typed password into the bcrypt meat grinder and compare it to the DB hash
+        const isMatch = await bcrypt.compare(password, user.password);
+        
+        if (!isMatch) {
+            return res.status(401).json({ error: "Invalid email or password." });
+        }
+
+        // 4. Create the JWT Wristband
+        const token = jwt.sign(
+            { userId: user._id, role: user.role }, 
+            process.env.JWT_SECRET, 
+            { expiresIn: '24h' }
+        );
+
+        // 5. Return data as JSON (Yes, returning the token + safe user data is the industry standard!)
+        res.status(200).json({
+            message: "Login successful!",
+            token: token,
+            user: {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+                role: user.role
+            }
+        });
+
+    } catch (error) {
+        console.error("Login Error:", error);
+        res.status(500).json({ error: "Server error during login." });
+    }
+};
+
+
+
 const registerUser = async (req, res) => {
     try {
         const { name, email, password, role } = req.body;
@@ -71,5 +126,5 @@ const getUserProfile = async (req, res) => {
 };
 
 module.exports = {
-    registerUser,getUserProfile
+    registerUser,getUserProfile,loginUser
 };

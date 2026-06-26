@@ -6,6 +6,8 @@ const router = express.Router();
 const { registerUser } = require('../Controllers/userController');
 const { getUserProfile } = require('../Controllers/userController');
 const { protect } = require('../Middlewares/authMiddleware');
+const { loginUser } = require('../Controllers/userController');
+
 
 
 
@@ -13,6 +15,7 @@ const { protect } = require('../Middlewares/authMiddleware');
 //calling the particular routes 
 router.post('/create',registerUser);
 router.get('/me', protect, getUserProfile);
+router.put('/login', loginUser);
 
 
 
