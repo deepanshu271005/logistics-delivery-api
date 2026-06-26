@@ -9,7 +9,7 @@ const { assignDriver } = require('../Controllers/driverAssigningController');
 const { protect, adminOnly } = require('../Middlewares/authMiddleware');
 
  //is route or aane waali post querry ko direct kr do contorller ko
-router.post('/', registerDriver);
+router.post('/',protect, registerDriver);
 router.get('/',protect, adminOnly, getAllDrivers);
 router.put('/:id/location', updateDriverLocation);
 router.post('/assign-driver',assignDriver);

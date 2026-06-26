@@ -5,41 +5,43 @@ const Driver = require('../Models/Driver'); // loading the schema of the driver 
 //creating a new entry
 const registerDriver = async (req, res) => {
     try {
-        // 1->> get the data send by the frontend for creating a driver 
-const { name, email, vehicleType, status, maxCapacity, location } = req.body;
-        // 2->> is complete info?
-        if (!name || !email || !vehicleType) {
-            return res.status(400).json({ message: "Please provide all required fields." });
+        // 1. Get the logistic details from the frontend
+        // Notice: No name or email needed! The central auth handles that.
+        const { vehicleType, status, maxCapacity, location } = req.body;
+
+        // 2. Check for the absolute required fields for logistics
+        if (!vehicleType) {
+            return res.status(400).json({ message: "Please provide a vehicle type." });
         }
 
-        // 3->> is valid for new account ??
-        const existingDriver = await Driver.findOne({ email });
+        // 3. Prevent duplicate profiles
+        // Check if this specific logged-in user already set up a driver profile.
+        // We safely get their ID from req.user.userId (which the bouncer/middleware provided)
+        const existingDriver = await Driver.findOne({ user: req.user.userId });
         if (existingDriver) {
-            return res.status(400).json({ message: "A driver with this email already exists!" });
+            return res.status(400).json({ message: "You already have a driver profile set up!" });
         }
 
-        // 4->> create an insert the new driver
+        // 4. Create the Driver profile and link it to the User's ID Card
         const newDriver = await Driver.create({
-            name,
-            email,
+            user: req.user.userId, // This is the magical link to the central User model!
             vehicleType,
-            status,      // Passed safely
-            maxCapacity, // Passed safely
-            location     // Passed safely
+            status,      
+            maxCapacity, 
+            location     
         });
 
-        // 5->> Send a success message back to the frontend
+        // 5. Send a success message back to the frontend
         res.status(201).json({
-            message: "Driver registered successfully!",
+            message: "Driver profile created successfully!",
             driver: newDriver
         });
 
     } catch (error) {
-        console.error(error);
+        console.error("Driver Profile Error:", error);
         res.status(500).json({ message: "Server Error", error: error.message });
     }
 };
-
 
 //reading all the driver info 
 const getAllDrivers = async (req, res) => {
