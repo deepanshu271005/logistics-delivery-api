@@ -159,49 +159,52 @@ const pickUpPackage = async (req, res) => {
 const completeDelivery = async (req, res) => {
     try {
         const { packageId } = req.params;
+        const userId = req.user.userId; // Grab the ID Card from the secure wristband
 
-        // 1. Find the package
+        // 1. Translate the ID Card into the Work Uniform (Find the logged-in Driver)
+        const loggedInDriver = await Driver.findOne({ user: userId });//this tell the findone to check the user object in the driver DB and check the user->>UserId of driver DB
+        if (!loggedInDriver) {
+            return res.status(403).json({ message: "You are not registered as a driver." });
+        }
+
+        // 2. Find the package
         const deliveryPackage = await Package.findById(packageId);
         if (!deliveryPackage) {
             return res.status(404).json({ error: "Package not found." });
         }
 
-        // 2. Prevent double-deliveries
+        // 3. THE BIG SECURITY CHECK!
+        // Does the package's assigned driver match the person making this request?
+        if (deliveryPackage.driverId.toString() !== loggedInDriver._id.toString()) {
+            return res.status(403).json({ message: "Access denied. You are not assigned to this package!" });
+        }
+
+        // 4. Prevent double-deliveries
         if (deliveryPackage.status === 'DELIVERED') {
             return res.status(400).json({ error: "Package has already been delivered." });
         }
-        if (!deliveryPackage.driverId) {
-            return res.status(400).json({ error: "Package is not assigned to a driver." });
-        }
 
-        // 3. Find the assigned driver
-        const driver = await Driver.findById(deliveryPackage.driverId);
-        if (!driver) {
-            return res.status(404).json({ error: "Assigned driver not found." });
-        }
-
-        // 4. Update the Package
+        // 5. Update the Package
         deliveryPackage.status = 'DELIVERED';
         await deliveryPackage.save();
 
-        // 5. Update the Driver's capacity Atomically to avoid the race condition 
-         
-       const updatedDriver = await Driver.findByIdAndUpdate(
-            deliveryPackage.driverId, 
+        // 6. Update the Driver's capacity Atomically (Using the ID we already verified!)
+        const updatedDriver = await Driver.findByIdAndUpdate(
+            loggedInDriver._id, 
             { 
                 $inc: { currentLoad: -1 }, 
                 $set: { status: 'AVAILABLE' } 
             }, 
-            { returnDocument: 'after' } // <-- Fixes the Mongoose warning!
-        );
+            { returnDocument: 'after' } // Mongoose standard to return the updated document
+        ).populate('user', 'name'); // We populate the user so we can send their name back!
 
-        // 6. Return Success Response
+        // 7. Return Success Response
         res.status(200).json({
             message: "Delivery completed successfully!",
             packageId: deliveryPackage._id,
             packageStatus: deliveryPackage.status,
             driverDetails: {
-                name: updatedDriver.name,
+                name: updatedDriver.user.name, // Safely grabbing the name from the populated user
                 newLoad: updatedDriver.currentLoad,
                 driverNewStatus: updatedDriver.status
             }

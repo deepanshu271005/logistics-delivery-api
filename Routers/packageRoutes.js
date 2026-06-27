@@ -11,7 +11,7 @@ const { protect } = require('../Middlewares/authMiddleware');
 // POST route to create a new package
 router.post('/create',protect, createPackage);
 router.get('/track/:packageId', trackPackage);
-router.put('/:packageId/complete', completeDelivery);
+router.put('/:packageId/complete',protect, completeDelivery);
 router.put('/:packageId/pickup', pickUpPackage);
 
 

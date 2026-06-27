@@ -81,7 +81,7 @@ const assignDriver = async (req, res) => {
         const updatedPackage = await Package.findByIdAndUpdate(packageId, {
             driverId: nearestDriver._id,
             status: 'ASSIGNED'
-        }, { new: true }); 
+        }, { returnDocument: 'after' }); 
 
         // 7. Success Response
         res.status(200).json({

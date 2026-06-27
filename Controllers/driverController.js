@@ -79,7 +79,7 @@ const updateDriverLocation = async (req, res) => {
                     coordinates: [longitude, latitude]  
                 }
             },
-            { new: true } // Mongoose standard for returning the updated document
+            { returnDocument: 'after' } // Mongoose standard for returning the updated document
         );
 
         if (!updatedDriver) {
