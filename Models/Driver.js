@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-//driver->>we need unique identification ,availability,postion 
+//driver->>we need unique identification,availability,postion 
 
 
 const driverSchema = new mongoose.Schema({

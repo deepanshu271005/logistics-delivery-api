@@ -125,20 +125,37 @@ const trackPackage = async (req, res) => {
 const pickUpPackage = async (req, res) => {
     try {
         const { packageId } = req.params;
+        const userId = req.user.userId; // 1. Grab the ID from the wristband
 
+        // 2. Translate the user ID into the Driver profile
+        const loggedInDriver = await Driver.findOne({ user: userId });
+        if (!loggedInDriver) {
+            return res.status(403).json({ message: "Access denied. You are not registered as a driver." });
+        }
+
+        // 3. Find the package
         const deliveryPackage = await Package.findById(packageId);
         if (!deliveryPackage) {
             return res.status(404).json({ error: "Package not found." });
         }
 
-        // The package MUST be ASSIGNED before it can be picked up
+
+        // 5. The package MUST be ASSIGNED before it can be picked up
         if (deliveryPackage.status !== 'ASSIGNED') {
             return res.status(400).json({ 
                 error: `Cannot pick up package. Current status is: ${deliveryPackage.status}` 
             });
         }
 
-        // Update status to IN_TRANSIT
+
+        // 4. THE BIG SECURITY CHECK!
+        // Is the person making this request the actual driver assigned to the package?
+        if (deliveryPackage.driverId.toString() !== loggedInDriver._id.toString()) {
+            return res.status(403).json({ message: "Access denied. You are not assigned to pick up this package!" });
+        }
+
+   
+        // 6. Update status to IN_TRANSIT
         deliveryPackage.status = 'IN_TRANSIT';
         await deliveryPackage.save();
 
@@ -204,7 +221,7 @@ const completeDelivery = async (req, res) => {
             packageId: deliveryPackage._id,
             packageStatus: deliveryPackage.status,
             driverDetails: {
-                name: updatedDriver.user.name, // Safely grabbing the name from the populated user
+                name: updatedDriver.user?.name || "Unknown Driver", // Safely grabbing the name from the populated user
                 newLoad: updatedDriver.currentLoad,
                 driverNewStatus: updatedDriver.status
             }

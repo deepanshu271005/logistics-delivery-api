@@ -12,7 +12,7 @@ const { protect } = require('../Middlewares/authMiddleware');
 router.post('/create',protect, createPackage);
 router.get('/track/:packageId', trackPackage);
 router.put('/:packageId/complete',protect, completeDelivery);
-router.put('/:packageId/pickup', pickUpPackage);
+router.put('/:packageId/pickup',protect, pickUpPackage);
 
 
 module.exports = router;
