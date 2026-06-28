@@ -2,32 +2,47 @@
 const Package = require('../models/Package');
 const Driver = require('../models/Driver');
 const { calculateDistance, calculateETA } = require('../utils/distanceCalculator');
+const { getCoordinates } = require('../utils/geoService');
 
 const createPackage = async (req, res) => {
     try {
-        // We DON'T pull customerId from req.body anymore
-        const { pickupLocation, dropoffLocation } = req.body;
+        const { pickupAddress, dropoffAddress } = req.body;
 
-        // Create the new package
+        // Validation: Ensure the user actually sent addresses
+        if (!pickupAddress || !dropoffAddress) {
+            return res.status(400).json({ error: "Please provide both pickup and dropoff addresses." });
+        }
+
+        // Convert strings to coordinates
+        // Using Promise.all to fetch both simultaneously (faster than waiting for one then the other)
+        const [pickupCoords, dropoffCoords] = await Promise.all([
+            getCoordinates(pickupAddress),
+            getCoordinates(dropoffAddress)
+        ]);
+
         const newPackage = await Package.create({
-            // We pull it from the 'protect' middleware's data instead!
-            customerId: req.user.userId, 
-            pickupLocation,
-            dropoffLocation
+            customerId: req.user.userId,  
+            pickupLocation: {
+                type: 'Point',
+                coordinates: [pickupCoords.lon, pickupCoords.lat]
+            },
+            dropoffLocation: {
+                type: 'Point',
+                coordinates: [dropoffCoords.lon, dropoffCoords.lat]
+            },
+            status: 'PENDING'
         });
 
-        res.status(201).json({
-            message: "Package successfully created",
-            packageDetails: newPackage
+        res.status(201).json({ 
+            message: "Package created successfully", 
+            packageDetails: newPackage 
         });
 
     } catch (error) {
-        // This log will now show the REAL error from Mongoose
-        console.error("Error creating package:", error);
-        res.status(500).json({ error: error.message });
+        // Handle cases where the address couldn't be found or the API failed
+        res.status(500).json({ error: "Failed to create package: " + error.message });
     }
 };
-
 
 const trackPackage = async (req, res) => {
     try {
