@@ -16,6 +16,8 @@ const PORT = process.env.PORT || 3000;//define it after the config line to avoid
 connectDB();
 app.use(express.json());
 
+const cors = require('cors');
+app.use(cors()); // This tells the bouncer to let the Vite frontend talk to the Express backend!
 
  
 
