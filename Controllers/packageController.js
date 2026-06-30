@@ -48,10 +48,22 @@ const trackPackage = async (req, res) => {
     try {
         const { packageId } = req.params;
 
+        // req.user is provided by  `protect` middleware
+        const currentUserId = req.user.userId;
+
         // 1. Find the package
         const deliveryPackage = await Package.findById(packageId);
         if (!deliveryPackage) {
             return res.status(404).json({ error: "Package not found." });
+        }
+
+
+        // 2. NEW SECURITY CHECK: Prevent IDOR
+        // Ensure the logged-in user actually owns this package
+        if (deliveryPackage.customerId.toString() !== currentUserId.toString()) {
+            return res.status(403).json({ 
+                error: "Access denied. You are not authorized to track this package." 
+            });
         }
 
         // 2. Prevent action on already delivered packages
