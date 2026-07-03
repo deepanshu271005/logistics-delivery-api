@@ -46,16 +46,37 @@ const registerDriver = async (req, res) => {
 //reading all the driver info 
 const getAllDrivers = async (req, res) => {
     try {
-        // .populate() tells Mongoose: "Look at the 'user' ID, go to the User collection, 
-        // and bring back their 'name' and 'email'!"
-        const drivers = await Driver.find().populate('user', 'name email');
+        // 1. Get the requested page from the URL query (default to 1)
+        const page = parseInt(req.query.page) || 1;
         
+        // 2. Set the limit, but ENFORCE a strict maximum of 10
+        let limit = parseInt(req.query.limit) || 10;
+        if (limit > 10) limit = 10;
+
+        // 3. Calculate how many documents to skip
+        // E.g., Page 1 skips 0. Page 2 skips 10. Page 3 skips 20.
+        const skip = (page - 1) * limit;
+
+        // 4. Apply .skip() and .limit() to the Mongoose query
+        const drivers = await Driver.find()
+            .populate('user', 'name email')
+            .skip(skip)
+            .limit(limit);
+
+        // 5. Count total drivers in the DB (Crucial for the frontend to know how many pages exist)
+        const totalDrivers = await Driver.countDocuments();
+
+        // 6. Return a professional paginated response
         res.status(200).json({
-            count: drivers.length,
+            currentPage: page,
+            totalPages: Math.ceil(totalDrivers / limit),
+            totalDrivers: totalDrivers,
+            returnedCount: drivers.length,
             drivers: drivers
         });
     } catch (error) {
-        // ... error handling
+        console.error("Error fetching drivers:", error);
+        res.status(500).json({ error: "Internal server error while fetching drivers." });
     }
 };
 
