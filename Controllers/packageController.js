@@ -1,8 +1,8 @@
 // Controllers/packageController.js
-const Package = require('../models/Package');
-const Driver = require('../models/Driver');
+const Package = require('../Models/Package');
+const Driver = require('../Models/Driver');
 const { calculateDistance, calculateETA } = require('../utils/distanceCalculator');
-const { getCoordinates } = require('../utils/geoService');
+const { getCoordinates } = require('../utils/geoservice');
 
 const createPackage = async (req, res) => {
     try {
@@ -43,6 +43,7 @@ const createPackage = async (req, res) => {
         res.status(500).json({ error: "Failed to create package: " + error.message });
     }
 };
+
 
 const trackPackage = async (req, res) => {
     try {
@@ -147,8 +148,6 @@ const trackPackage = async (req, res) => {
 };
 
 
-
-
 const pickUpPackage = async (req, res) => {
     try {
         const { packageId } = req.params;
@@ -197,7 +196,6 @@ const pickUpPackage = async (req, res) => {
         res.status(500).json({ error: "Internal server error during pickup." });
     }
 };
-
 
 
 const completeDelivery = async (req, res) => {

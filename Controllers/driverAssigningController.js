@@ -1,6 +1,6 @@
 // controllers/matchmakingController.js
-const Driver = require('../models/Driver');
-const Package = require('../models/Package');
+const Driver = require('../Models/Driver');
+const Package = require('../Models/Package');
 const { calculateDistance, calculateETA } = require('../utils/distanceCalculator')
  
 const assignDriver = async (req, res) => {

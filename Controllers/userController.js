@@ -1,5 +1,5 @@
 
-const User = require('../models/User');  
+const User = require('../Models/User');  
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
@@ -57,8 +57,6 @@ const loginUser = async (req, res) => {
     }
 };
 
-
-
 const registerUser = async (req, res) => {
     try {
         const { name, email, password, role } = req.body;
@@ -103,8 +101,6 @@ const registerUser = async (req, res) => {
     }
 };
 
-
-
 const getUserProfile = async (req, res) => {
     try {
         // req.user was securely attached to the request by your 'protect' bouncer!
@@ -126,6 +122,8 @@ const getUserProfile = async (req, res) => {
         res.status(500).json({ error: "Internal server error fetching profile." });
     }
 };
+
+
 
 module.exports = {
     registerUser,getUserProfile,loginUser

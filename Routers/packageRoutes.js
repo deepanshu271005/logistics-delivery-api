@@ -2,10 +2,10 @@
 const express = require('express');
 const router = express.Router();
 
-const { createPackage } = require('../controllers/packageController');
-const { trackPackage } = require('../controllers/packageController');
-const { completeDelivery } = require('../controllers/packageController');
-const { pickUpPackage } = require('../controllers/packageController');
+const { createPackage } = require('../Controllers/packageController');
+const { trackPackage } = require('../Controllers/packageController');
+const { completeDelivery } = require('../Controllers/packageController');
+const { pickUpPackage } = require('../Controllers/packageController');
 const { protect } = require('../Middlewares/authMiddleware');
 
 // POST route to create a new package

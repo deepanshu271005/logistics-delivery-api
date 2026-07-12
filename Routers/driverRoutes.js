@@ -12,7 +12,7 @@ const { protect, adminOnly } = require('../Middlewares/authMiddleware');
 router.post('/',protect, registerDriver);
 router.get('/',protect, adminOnly, getAllDrivers);
 router.put('/updateLocation',protect, updateDriverLocation);
-router.post('/assign-driver',assignDriver);
+router.post('/assign-driver', protect, adminOnly, assignDriver);
 
 
  
