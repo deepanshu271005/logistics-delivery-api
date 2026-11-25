@@ -1,0 +1,56 @@
+version: "3.8"
+
+services:
+  mongo:
+    image: mongo:7
+    container_name: logistic-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: .
+    container_name: logistic-api
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+      MONGO_URI: mongodb://mongo:27017/logistic_api
+      JWT_SECRET: docker_test_secret_key_12345
+      GEOAPIFY_KEY: ${GEOAPIFY_KEY:-c564687087e0491da3e0abf44e3766a8}
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  # One-shot container that runs the validation script then exits
+  test:
+    image: node:20-alpine
+    container_name: logistic-test
+    working_dir: /tests
+    volumes:
+      - ./tests:/tests
+    environment:
+      API_URL: http://api:3000
+    depends_on:
+      - api
+    # Wait for the API to be reachable, then run tests
+    command: >
+      sh -c "
+        apk add --no-cache curl > /dev/null 2>&1 &&
+        echo '⏳ Waiting for API to be ready...' &&
+        until curl -sf http://api:3000/api/user/me > /dev/null 2>&1 || curl -sf -o /dev/null -w '%{http_code}' http://api:3000/api/user/me | grep -q '401'; do
+          sleep 1
+        done &&
+        echo '✅ API is up!' &&
+        npm install > /dev/null 2>&1 &&
+        node validate-api.js
+      "
+
+volumes:
+  mongo-data:

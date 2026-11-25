@@ -23,25 +23,38 @@ const assignDriver = async (req, res) => {
         // FIX 2: Renamed variables to match the math formula below
         const [pickupLon, pickupLat] = deliveryPackage.pickupLocation.coordinates;
 
-        // 2. The $near Query: Find the closest driver with capacity
-        const nearestDriver = await Driver.findOne({
-            status: 'AVAILABLE',
-            $expr: { $lt: ['$currentLoad', '$maxCapacity'] },
-            location: {
-                $near: {
-                    $geometry: {
-                        type: "Point",
-                        coordinates: [pickupLon, pickupLat]
+        // 2. ATOMIC Find + Update: Find the closest available driver AND claim them in ONE operation
+        // This prevents race conditions — two orders can't grab the same driver
+        const nearestDriver = await Driver.findOneAndUpdate(
+            {
+                status: 'AVAILABLE',
+                $expr: { $lt: ['$currentLoad', '$maxCapacity'] },
+                location: {
+                    $near: {
+                        $geometry: {
+                            type: "Point",
+                            coordinates: [pickupLon, pickupLat]
+                        }
                     }
                 }
-            }
-        });
+            },
+            {
+                $inc: { currentLoad: 1 }  // Claim this driver immediately!
+            },
+            { returnDocument: 'after' }   // Return the UPDATED driver document
+        );
 
         // 3. Handle No Match
         if (!nearestDriver) {
             return res.status(404).json({ 
                 message: "No drivers are currently available or nearby." 
             });
+        }
+
+        // 4. Now update the driver's status based on new load (already incremented above)
+        const isNowFull = nearestDriver.currentLoad >= nearestDriver.maxCapacity;
+        if (isNowFull) {
+            await Driver.findByIdAndUpdate(nearestDriver._id, { status: 'BUSY' });
         }
 
         // Leg A: Driver to Restaurant
@@ -66,16 +79,6 @@ const assignDriver = async (req, res) => {
         
         // Pass the TOTAL distance into your ETA tool
         const estimatedTimeMins = calculateETA(totalDistanceKm);
-
-        // 4. Calculate capacity status
-        const isNowFull = (nearestDriver.currentLoad + 1) >= nearestDriver.maxCapacity;
-        const newStatus = isNowFull ? 'BUSY' : 'AVAILABLE';
-
-        // 5. Atomic Update: Driver
-        await Driver.findByIdAndUpdate(nearestDriver._id, {
-            $inc: { currentLoad: 1 },
-            status: newStatus
-        });
 
         // 6. Atomic Update: Package
         const updatedPackage = await Package.findByIdAndUpdate(packageId, {

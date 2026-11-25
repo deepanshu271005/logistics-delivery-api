@@ -166,29 +166,31 @@ const pickUpPackage = async (req, res) => {
         }
 
 
-        // 5. The package MUST be ASSIGNED before it can be picked up
-        if (deliveryPackage.status !== 'ASSIGNED') {
-            return res.status(400).json({ 
-                error: `Cannot pick up package. Current status is: ${deliveryPackage.status}` 
-            });
-        }
-
-
         // 4. THE BIG SECURITY CHECK!
         // Is the person making this request the actual driver assigned to the package?
         if (deliveryPackage.driverId.toString() !== loggedInDriver._id.toString()) {
             return res.status(403).json({ message: "Access denied. You are not assigned to pick up this package!" });
         }
 
-   
-        // 6. Update status to IN_TRANSIT
-        deliveryPackage.status = 'IN_TRANSIT';
-        await deliveryPackage.save();
+        // 5. ATOMIC status transition: ASSIGNED → IN_TRANSIT
+        // Uses findOneAndUpdate with status check in the filter to prevent race conditions
+        // If two requests hit simultaneously, only the first one matches the filter
+        const updatedPackage = await Package.findOneAndUpdate(
+            { _id: packageId, status: 'ASSIGNED' },  // Only match if STILL assigned
+            { status: 'IN_TRANSIT' },
+            { returnDocument: 'after' }
+        );
+
+        if (!updatedPackage) {
+            return res.status(400).json({ 
+                error: `Cannot pick up package. Current status is: ${deliveryPackage.status}` 
+            });
+        }
 
         res.status(200).json({
             message: "Package picked up successfully! Driver is on route to customer.",
-            packageId: deliveryPackage._id,
-            status: deliveryPackage.status
+            packageId: updatedPackage._id,
+            status: updatedPackage.status
         });
 
     } catch (error) {
@@ -221,14 +223,18 @@ const completeDelivery = async (req, res) => {
             return res.status(403).json({ message: "Access denied. You are not assigned to this package!" });
         }
 
-        // 4. Prevent double-deliveries
-        if (deliveryPackage.status === 'DELIVERED') {
+        // 4. ATOMIC status transition: IN_TRANSIT → DELIVERED
+        // Uses findOneAndUpdate with status check to prevent double-delivery race condition
+        // If two requests hit simultaneously, only the first one matches the filter
+        const updatedDelivery = await Package.findOneAndUpdate(
+            { _id: packageId, status: { $ne: 'DELIVERED' } },  // Only match if NOT already delivered
+            { status: 'DELIVERED' },
+            { returnDocument: 'after' }
+        );
+
+        if (!updatedDelivery) {
             return res.status(400).json({ error: "Package has already been delivered." });
         }
-
-        // 5. Update the Package
-        deliveryPackage.status = 'DELIVERED';
-        await deliveryPackage.save();
 
         // 6. Update the Driver's capacity Atomically (Using the ID we already verified!)
         const updatedDriver = await Driver.findByIdAndUpdate(
@@ -243,8 +249,8 @@ const completeDelivery = async (req, res) => {
         // 7. Return Success Response
         res.status(200).json({
             message: "Delivery completed successfully!",
-            packageId: deliveryPackage._id,
-            packageStatus: deliveryPackage.status,
+            packageId: updatedDelivery._id,
+            packageStatus: updatedDelivery.status,
             driverDetails: {
                 name: updatedDriver.user?.name || "Unknown Driver", // Safely grabbing the name from the populated user
                 newLoad: updatedDriver.currentLoad,
